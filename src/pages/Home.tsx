@@ -52,7 +52,7 @@ export const Home: React.FC = () => {
         setPage(pageNum);
       } else {
         // Fetch user-specific comments
-        const response = await commentsApi.getUserComments(pageNum, 20);
+        const response = await commentsApi.getAllComments(pageNum, 20);
         
         if (append) {
           setComments(prev => [...prev, ...response.comments]);

@@ -1,4 +1,5 @@
-import React, { useState } from 'react';
+// CommentCard.tsx - Fixed version with proper restoration visibility
+import React, {useState } from 'react';
 import { formatDistanceToNow } from 'date-fns';
 import {
   MoreHorizontal,
@@ -42,17 +43,22 @@ export const CommentCard: React.FC<CommentCardProps> = ({
   setIsReplying,
   isEditing,
   setIsEditing,
-  depth ,
-  replyCount ,
+  depth = 0,
+  replyCount = 0,
   loadingReplies = false
 }) => {
   const { user } = useAuth();
   const [showMenu, setShowMenu] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
+  const [isRestoring, setIsRestoring] = useState(false);
 
   const isOwner = user?.id === comment.authorId;
-  const hasReplies = (replyCount ?? 0) > 0;
+  const hasReplies = replyCount > 0;
+
+  // Check if user can restore - owner or admin can restore
+  const canRestore = comment.isDeleted && (isOwner );
 
   const handleReply = async (content: string) => {
     setIsLoading(true);
@@ -71,9 +77,14 @@ export const CommentCard: React.FC<CommentCardProps> = ({
 
   const handleEdit = async (content: string) => {
     setIsLoading(true);
+    setErrorMessage(null);
     try {
       await onEdit(content);
       setIsEditing(false);
+    } catch (error: any) {
+      console.error('Edit error:', error);
+      const message = error?.response?.data?.message || 'Failed to edit comment.';
+      setErrorMessage(typeof message === 'string' ? message : message[0]);
     } finally {
       setIsLoading(false);
     }
@@ -81,48 +92,83 @@ export const CommentCard: React.FC<CommentCardProps> = ({
 
   const handleDelete = async () => {
     if (!window.confirm('Are you sure you want to delete this comment?')) return;
-    setIsLoading(true);
+    
+    setIsDeleting(true);
+    setShowMenu(false);
+    
     try {
       await onDelete();
-      setShowMenu(false);
+    } catch (error: any) {
+      console.error('Delete error:', error);
+      const message = error?.response?.data?.message || 'Failed to delete comment.';
+      setErrorMessage(typeof message === 'string' ? message : message[0]);
     } finally {
-      setIsLoading(false);
+      setIsDeleting(false);
     }
   };
 
   const handleRestore = async () => {
-    setIsLoading(true);
+    setIsRestoring(true);
     try {
       await onRestore();
+    } catch (error: any) {
+      console.error('Restore error:', error);
+      const message = error?.response?.data?.message || 'Failed to restore comment.';
+      setErrorMessage(typeof message === 'string' ? message : message[0]);
     } finally {
-      setIsLoading(false);
+      setIsRestoring(false);
     }
   };
 
-  if (comment.isDeleted) {
+  // Show loading state while deleting
+  if (isDeleting) {
     return (
-      <div className={`${(depth ?? 0) > 0 ? 'ml-6 pl-4 border-l-2 border-gray-200' : ''}`}>
-        <div className="bg-gray-50 border border-gray-200 rounded-lg p-3">
-          <div className="flex items-center justify-between">
-            <span className="text-sm text-gray-500 italic">This comment has been deleted</span>
-            {comment.canRestore && (
-              <button
-                onClick={handleRestore}
-                disabled={isLoading}
-                className="flex items-center gap-1 text-xs text-blue-600 hover:text-blue-700 disabled:opacity-50"
-              >
-                <RotateCcw className="w-3 h-3" />
-                Restore
-              </button>
-            )}
+      <div className={`${depth > 0 ? 'ml-6 pl-4 border-l-2 border-gray-200' : ''}`}>
+        <div className="bg-gray-50 border border-gray-200 rounded-lg p-3 opacity-50">
+          <div className="flex items-center justify-center">
+            <span className="text-sm text-gray-500">Deleting comment...</span>
           </div>
         </div>
       </div>
     );
   }
 
+  if (comment.isDeleted) {
+    return (
+      <div className={`${depth > 0 ? 'ml-6 pl-4 border-l-2 border-gray-200' : ''}`}>
+        <div className="bg-gray-50 border border-gray-200 rounded-lg p-3">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <span className="text-sm text-gray-500 italic">This comment has been deleted</span>
+              { !isOwner && (
+                <span className="text-xs text-gray-400">
+                  (by {comment.author.username})
+                </span>
+              )}
+            </div>
+            {canRestore && (
+              <button
+                onClick={handleRestore}
+                disabled={isRestoring}
+                className="flex items-center gap-1 text-xs text-blue-600 hover:text-blue-700 disabled:opacity-50 transition-colors"
+              >
+                <RotateCcw className="w-3 h-3" />
+                {isRestoring ? 'Restoring...' : 'Restore'}
+              </button>
+            )}
+          </div>
+          {errorMessage && (
+            <div className="text-xs text-red-600 mt-2 bg-red-50 border border-red-200 rounded p-2">
+              {errorMessage}
+            </div>
+          )}
+        </div>
+      </div>
+    );
+  }
+
   return (
-    <div className={`${(depth ?? 0) > 0 ? 'ml-6 pl-4 border-l-2 border-gray-200' : ''}`}>
+    <div className={`${depth > 0 ? 'ml-6 pl-4 border-l-2 border-gray-200' : ''}`}>
       <div className="bg-white border border-gray-200 rounded-lg p-3 hover:shadow-sm transition-shadow">
         {/* Header */}
         <div className="flex items-start justify-between mb-2">
@@ -140,21 +186,25 @@ export const CommentCard: React.FC<CommentCardProps> = ({
             </div>
           </div>
 
-          {isOwner && (
+          {/* Show menu for owner or admin */}
+          {(isOwner ) && (
             <div className="relative">
               <button
                 onClick={() => setShowMenu(!showMenu)}
                 className="p-1 text-gray-400 hover:text-gray-600 transition-colors"
+                disabled={isLoading}
               >
                 <MoreHorizontal className="w-4 h-4" />
               </button>
               {showMenu && (
                 <div className="absolute right-0 top-6 bg-white border border-gray-200 rounded-lg shadow-lg py-1 z-10 min-w-[120px]">
-                  {comment.canEdit && (
+                  {/* Edit option - only for owner */}
+                  {isOwner && comment.canEdit && (
                     <button
                       onClick={() => {
                         setIsEditing(true);
                         setShowMenu(false);
+                        setErrorMessage(null);
                       }}
                       className="w-full flex items-center gap-2 px-3 py-2 text-sm text-gray-700 hover:bg-gray-50"
                     >
@@ -162,7 +212,8 @@ export const CommentCard: React.FC<CommentCardProps> = ({
                       Edit
                     </button>
                   )}
-                  {comment.canDelete && (
+                  {/* Delete option - owner or admin */}
+                  {(isOwner && comment.canDelete)  && (
                     <button
                       onClick={handleDelete}
                       className="w-full flex items-center gap-2 px-3 py-2 text-sm text-red-600 hover:bg-red-50"
@@ -183,7 +234,10 @@ export const CommentCard: React.FC<CommentCardProps> = ({
             <InlineCommentInput
               initialValue={comment.content}
               onSubmit={handleEdit}
-              onCancel={() => setIsEditing(false)}
+              onCancel={() => {
+                setIsEditing(false);
+                setErrorMessage(null);
+              }}
               placeholder="Edit your comment..."
               submitLabel="Save"
               isLoading={isLoading}
@@ -197,14 +251,20 @@ export const CommentCard: React.FC<CommentCardProps> = ({
 
         {/* Error Message */}
         {errorMessage && (
-          <div className="text-xs text-red-600 mb-2">{errorMessage}</div>
+          <div className="text-xs text-red-600 mb-2 bg-red-50 border border-red-200 rounded p-2">
+            {errorMessage}
+          </div>
         )}
 
         {/* Actions */}
         <div className="flex items-center gap-4 text-xs text-gray-500">
           <button
-            onClick={() => setIsReplying(!isReplying)}
+            onClick={() => {
+              setIsReplying(!isReplying);
+              setErrorMessage(null);
+            }}
             className="flex items-center gap-1 hover:text-blue-600 transition-colors"
+            disabled={isLoading}
           >
             <Reply className="w-3 h-3" />
             Reply
@@ -214,6 +274,7 @@ export const CommentCard: React.FC<CommentCardProps> = ({
             <button
               onClick={onToggleReplies}
               className="flex items-center gap-1 hover:text-blue-600 transition-colors"
+              disabled={loadingReplies}
             >
               {showReplies ? (
                 <ChevronDown className="w-3 h-3" />
@@ -230,7 +291,10 @@ export const CommentCard: React.FC<CommentCardProps> = ({
           <div className="mt-3">
             <InlineCommentInput
               onSubmit={handleReply}
-              onCancel={() => setIsReplying(false)}
+              onCancel={() => {
+                setIsReplying(false);
+                setErrorMessage(null);
+              }}
               placeholder="Write a reply..."
               isLoading={isLoading}
             />

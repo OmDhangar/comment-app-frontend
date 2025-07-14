@@ -1,10 +1,38 @@
 import { api } from './api';
 import { Comment, CreateCommentRequest, UpdateCommentRequest, CommentsResponse } from '../types';
+export interface GetCommentsParams {
+  page?: number;
+  limit?: number;
+  postId?: string;
+  parentId?: string;
+  includeDeleted?: boolean;
+  sortBy?: 'createdAt' | 'updatedAt';
+  sortOrder?: 'asc' | 'desc';
+  userId?: string; // Optional filter by specific user
+}
 
 export const commentsApi = {
   // Get all comments with pagination
-  getAllComments: async (page: number = 1, limit: number = 20): Promise<CommentsResponse> => {
-    const response = await api.get(`/comments?page=${page}&limit=${limit}`);
+  getAllComments: async (page: number = 1, limit: number = 20, postId:any,
+      parentId:any,
+      includeDeleted = false,
+      sortBy = 'createdAt',
+      sortOrder = 'desc',
+      userId:any): Promise<CommentsResponse> => {
+
+
+
+    const queryParams = new URLSearchParams({
+      page: page.toString(),
+      limit: limit.toString(),
+      sortBy,
+      sortOrder,
+      ...(postId && { postId }),
+      ...(parentId && { parentId }),
+      ...(includeDeleted && { includeDeleted: 'true' }),
+      ...(userId && { userId })
+    });
+    const response = await api.get(`/comments?${queryParams}`);
     return response.data;
   },
 
