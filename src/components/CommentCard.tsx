@@ -1,5 +1,4 @@
-// CommentCard.tsx - Fixed version with proper restoration visibility
-import React, {useState } from 'react';
+import React, { useState } from 'react';
 import { formatDistanceToNow } from 'date-fns';
 import {
   MoreHorizontal,
@@ -55,10 +54,12 @@ export const CommentCard: React.FC<CommentCardProps> = ({
   const [isRestoring, setIsRestoring] = useState(false);
 
   const isOwner = user?.id === comment.authorId;
+  const isAdmin = user?.role === 'admin' || user?.role === 'moderator';
   const hasReplies = replyCount > 0;
 
-  // Check if user can restore - owner or admin can restore
-  const canRestore = comment.isDeleted && (isOwner );
+  const canEdit = isOwner;
+  const canDelete = isOwner || isAdmin;
+  const canRestore = comment.isDeleted && (isOwner || isAdmin);
 
   const handleReply = async (content: string) => {
     setIsLoading(true);
@@ -67,7 +68,6 @@ export const CommentCard: React.FC<CommentCardProps> = ({
       await onReply(content);
       setIsReplying(false);
     } catch (error: any) {
-      console.error('Reply error:', error);
       const message = error?.response?.data?.message || 'Failed to reply.';
       setErrorMessage(typeof message === 'string' ? message : message[0]);
     } finally {
@@ -82,7 +82,6 @@ export const CommentCard: React.FC<CommentCardProps> = ({
       await onEdit(content);
       setIsEditing(false);
     } catch (error: any) {
-      console.error('Edit error:', error);
       const message = error?.response?.data?.message || 'Failed to edit comment.';
       setErrorMessage(typeof message === 'string' ? message : message[0]);
     } finally {
@@ -92,14 +91,13 @@ export const CommentCard: React.FC<CommentCardProps> = ({
 
   const handleDelete = async () => {
     if (!window.confirm('Are you sure you want to delete this comment?')) return;
-    
+
     setIsDeleting(true);
     setShowMenu(false);
-    
+
     try {
       await onDelete();
     } catch (error: any) {
-      console.error('Delete error:', error);
       const message = error?.response?.data?.message || 'Failed to delete comment.';
       setErrorMessage(typeof message === 'string' ? message : message[0]);
     } finally {
@@ -112,7 +110,6 @@ export const CommentCard: React.FC<CommentCardProps> = ({
     try {
       await onRestore();
     } catch (error: any) {
-      console.error('Restore error:', error);
       const message = error?.response?.data?.message || 'Failed to restore comment.';
       setErrorMessage(typeof message === 'string' ? message : message[0]);
     } finally {
@@ -140,10 +137,8 @@ export const CommentCard: React.FC<CommentCardProps> = ({
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
               <span className="text-sm text-gray-500 italic">This comment has been deleted</span>
-              { !isOwner && (
-                <span className="text-xs text-gray-400">
-                  (by {comment.author.username})
-                </span>
+              {!isOwner && (
+                <span className="text-xs text-gray-400">(by {comment.author.username})</span>
               )}
             </div>
             {canRestore && (
@@ -186,8 +181,7 @@ export const CommentCard: React.FC<CommentCardProps> = ({
             </div>
           </div>
 
-          {/* Show menu for owner or admin */}
-          {(isOwner ) && (
+          {(canEdit || canDelete) && (
             <div className="relative">
               <button
                 onClick={() => setShowMenu(!showMenu)}
@@ -198,8 +192,7 @@ export const CommentCard: React.FC<CommentCardProps> = ({
               </button>
               {showMenu && (
                 <div className="absolute right-0 top-6 bg-white border border-gray-200 rounded-lg shadow-lg py-1 z-10 min-w-[120px]">
-                  {/* Edit option - only for owner */}
-                  {isOwner && comment.canEdit && (
+                  {canEdit && (
                     <button
                       onClick={() => {
                         setIsEditing(true);
@@ -212,8 +205,7 @@ export const CommentCard: React.FC<CommentCardProps> = ({
                       Edit
                     </button>
                   )}
-                  {/* Delete option - owner or admin */}
-                  {(isOwner && comment.canDelete)  && (
+                  {canDelete && (
                     <button
                       onClick={handleDelete}
                       className="w-full flex items-center gap-2 px-3 py-2 text-sm text-red-600 hover:bg-red-50"
@@ -281,7 +273,9 @@ export const CommentCard: React.FC<CommentCardProps> = ({
               ) : (
                 <ChevronRight className="w-3 h-3" />
               )}
-              {loadingReplies ? 'Loading...' : `${replyCount} ${replyCount === 1 ? 'reply' : 'replies'}`}
+              {loadingReplies
+                ? 'Loading...'
+                : `${replyCount} ${replyCount === 1 ? 'reply' : 'replies'}`}
             </button>
           )}
         </div>

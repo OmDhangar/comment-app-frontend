@@ -77,6 +77,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     await checkAuthStatus();
   };
 
+
   const value: AuthContextType = {
     user,
     isLoading,

@@ -38,7 +38,10 @@ export const AuthForm: React.FC<AuthFormProps> = ({ type }) => {
       }
       navigate('/');
     } catch (err: any) {
-      setError(err.data.message);
+      const errorMessage = err?.response?.data?.message || err?.message || 'An error occurred';
+      console.log(errorMessage);
+      console.log(err)
+      setError(errorMessage);
     } finally {
       setIsLoading(false);
     }
