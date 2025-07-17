@@ -75,7 +75,7 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({
 
   const fetchNotifications = async () => {
     try {
-      const response = await fetch(`${import.meta.env.VITE_API_URL}/notifications`, {
+      const response = await fetch(`${import.meta.env.VITE_API_URL}/api/notifications`, {
         credentials: 'include',
       });
       const data = await response.json();
@@ -87,7 +87,7 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({
 
   const markAsRead = async (id: string) => {
     try {
-      await fetch(`${import.meta.env.VITE_API_URL}/notifications/${id}/read`, {
+      await fetch(`${import.meta.env.VITE_API_URL}/api/notifications/${id}/read`, {
         method: 'POST',
         credentials: 'include',
       });
