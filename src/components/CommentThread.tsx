@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { Comment } from '../types';
 import { CommentCard } from './CommentCard';
 import { commentsApi } from '../api/comments';
+import toast from 'react-hot-toast';
 
 interface CommentThreadProps {
   comment: Comment;
@@ -27,96 +28,72 @@ export const CommentThread: React.FC<CommentThreadProps> = ({
     setReplies(comment.replies || []);
   }, [comment]);
 
-  const handleReply = async (content: string) => {
-    try {
-      const newReply = await commentsApi.createComment({
-        content,
-        parent_id: comment.id,
-      });
-      
-      // Optimistically update local state
-      setReplies(prev => [...prev, newReply]);
-      
-      // Update parent comment's reply count
-      setLocalComment(prev => ({
-        ...prev,
-        _count: {
-          ...prev._count,
-          replies: (prev._count?.replies || 0) + 1
-        }
-      }));
-      
-      // Ensure replies are shown after adding one
-      setShowReplies(true);
-      
-      // Call parent update
-      onUpdate();
-    } catch (error) {
-      console.error('Failed to add reply:', error);
-      // Optionally reload replies on error
-      await loadReplies();
-    }
-  };
+const handleReply = async (content: string) => {
+  try {
+    const newReply = await commentsApi.createComment({
+      content,
+      parent_id: comment.id,
+    });
+    
+    // Update local state
+    await loadReplies();
+    
+    // Update parent comment's reply count
+    setLocalComment(prev => ({
+      ...prev,
+      _count: {
+        ...prev._count,
+        replies: (prev._count?.replies || 0) + 1
+      }
+    }));
+    
+    setShowReplies(true);
+    onUpdate();
+  } catch (error: any) {
+    const message = error?.response?.data?.message || 'Failed to add reply';
+    toast.error(message);
+    await loadReplies();
+  }
+};
 
-  const handleEdit = async (content: string) => {
-    try {
-      const updatedComment = await commentsApi.updateComment(comment.id, { content });
-      
-      // Optimistically update local state
-      setLocalComment(prev => ({
-        ...prev,
-        content: updatedComment.content,
-        isEdited: true,
-        updatedAt: updatedComment.updatedAt
-      }));
-      
-      // Call parent update
-      onUpdate();
-    } catch (error) {
-      console.error('Failed to edit comment:', error);
-      // Revert on error by calling onUpdate to refresh from parent
-      onUpdate();
-    }
-  };
+const handleEdit = async (content: string) => {
+  try {
+    const updatedComment = await commentsApi.updateComment(comment.id, { content });
+    
+    setLocalComment(prev => ({
+      ...prev,
+      content: updatedComment.content,
+      isEdited: true,
+      updatedAt: updatedComment.updatedAt
+    }));
+    
+    toast.success('Comment updated successfully');
+    onUpdate();
+  } catch (error: any) {
+    const message = error?.response?.data?.message || 'Failed to edit comment';
+    toast.error(message);
+    onUpdate();
+  }
+};
 
-  const handleDelete = async () => {
-    try {
-      await commentsApi.deleteComment(comment.id);
-      
-      // Optimistically update local state
-      setLocalComment(prev => ({
-        ...prev,
-        isDeleted: true,
-        content: ''
-      }));
-      
-      // Call parent update
-      onUpdate();
-    } catch (error) {
-      console.error('Failed to delete comment:', error);
-      // Revert on error
-      onUpdate();
-    }
-  };
-
-  const handleRestore = async () => {
-    try {
-      const restoredComment = await commentsApi.restoreComment(comment.id);
-      
-      // Optimistically update local state
-      setLocalComment(prev => ({
-        ...prev,
-        isDeleted: false,
-        content: restoredComment.content
-      }));
-      
-      // Call parent update
-      onUpdate();
-    } catch (error) {
-      console.error('Failed to restore comment:', error);
-      onUpdate();
-    }
-  };
+const handleRestore = async () => {
+  try {
+    const restoredComment = await commentsApi.restoreComment(comment.id);
+    
+    setLocalComment(prev => ({
+      ...prev,
+      isDeleted: false,
+      content: restoredComment.content
+    }));
+    
+    toast.success('Comment restored successfully');
+    onUpdate();
+  } catch (error: any) {
+    const message = error?.response?.data?.message || 'Failed to restore comment';
+    toast.error(message);
+    onUpdate();
+  }
+};
 
   const loadReplies = async () => {
     setLoadingReplies(true);
@@ -159,6 +136,20 @@ export const CommentThread: React.FC<CommentThreadProps> = ({
     // Call parent update
     onUpdate();
   };
+
+  function handleDelete(): Promise<void> {
+    return new Promise(async (resolve, reject) => {
+      try {
+        await commentsApi.deleteComment(comment.id);
+        handleReplyDelete(comment.id);
+        resolve();
+      } catch (error: any) {
+        const message = error?.response?.data?.message || 'Failed to delete comment';
+        toast.error(message);
+        reject(new Error(message));
+      }
+    });
+  }
 
   return (
     <div className="space-y-3">

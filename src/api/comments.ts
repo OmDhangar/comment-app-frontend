@@ -13,28 +13,40 @@ export interface GetCommentsParams {
 
 export const commentsApi = {
   // Get all comments with pagination
-  getAllComments: async (page: number = 1, limit: number = 20, postId:any,
-      parentId:any,
+      getAllComments: async ({
+      page = 1,
+      limit = 20,
+      postId,
+      parentId,
       includeDeleted = false,
       sortBy = 'createdAt',
       sortOrder = 'desc',
-      userId:any): Promise<CommentsResponse> => {
+      userId,
+    }: {
+      page?: number;
+      limit?: number;
+      postId?: any;
+      parentId?: any;
+      includeDeleted?: boolean;
+      sortBy?: string;
+      sortOrder?: string;
+      userId?: any;
+    }): Promise<CommentsResponse> => {
+      const queryParams = new URLSearchParams({
+        page: page.toString(),
+        limit: limit.toString(),
+        sortBy,
+        sortOrder,
+        ...(postId && { postId }),
+        ...(parentId && { parentId }),
+        ...(includeDeleted && { includeDeleted: 'true' }),
+        ...(userId && { userId }),
+      });
 
+      const response = await api.get(`/comments?${queryParams}`);
+      return response.data;
+    },
 
-
-    const queryParams = new URLSearchParams({
-      page: page.toString(),
-      limit: limit.toString(),
-      sortBy,
-      sortOrder,
-      ...(postId && { postId }),
-      ...(parentId && { parentId }),
-      ...(includeDeleted && { includeDeleted: 'true' }),
-      ...(userId && { userId })
-    });
-    const response = await api.get(`/comments?${queryParams}`);
-    return response.data;
-  },
 
   // Get comments for the current user
   getUserComments: async (page: number = 1, limit: number = 20): Promise<CommentsResponse> => {

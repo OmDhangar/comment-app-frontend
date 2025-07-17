@@ -81,16 +81,6 @@ export const AuthForm: React.FC<AuthFormProps> = ({ type }) => {
             </div>
           )}
           
-          {/* Demo Mode Notice */}
-          {(!import.meta.env.VITE_API_URL || import.meta.env.VITE_DEMO_MODE === 'true') && (
-            <div className="flex items-center gap-2 p-3 bg-blue-50 border border-blue-200 rounded-lg text-blue-800">
-              <AlertCircle className="w-5 h-5 flex-shrink-0" />
-              <div className="text-sm">
-                <strong>Demo Mode:</strong> You can use any email/password to {type === 'login' ? 'sign in' : 'register'}
-              </div>
-            </div>
-          )}
-
           <div className="space-y-4">
             {type === 'register' && (
               <div>

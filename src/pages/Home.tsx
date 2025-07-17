@@ -6,6 +6,7 @@ import { commentsApi } from '../api/comments';
 import { CommentThread } from '../components/CommentThread';
 import { InlineCommentInput } from '../components/InlineCommentInput';
 import { mockComments } from '../data/mockData';
+import { NotificationBell } from '../components/notificationBell';
 
 export const Home: React.FC = () => {
   const { user, logout, isLoading: isAuthLoading, isAuthenticated } = useAuth();
@@ -52,7 +53,7 @@ export const Home: React.FC = () => {
         setPage(pageNum);
       } else {
         // Fetch user-specific comments
-        const response = await commentsApi.getAllComments(pageNum, 20);
+        const response = await commentsApi.getAllComments({page:pageNum, userId:user.id});
         
         if (append) {
           setComments(prev => [...prev, ...response.comments]);
@@ -194,6 +195,7 @@ export const Home: React.FC = () => {
         <div className="max-w-3xl mx-auto px-4 py-4">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
+              <NotificationBell />
               <MessageSquare className="w-8 h-8 text-blue-600" />
               <div>
                 <h1 className="text-xl font-bold text-gray-900">
