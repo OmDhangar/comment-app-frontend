@@ -76,10 +76,15 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({
   const fetchNotifications = async () => {
     try {
       const response = await fetch(`${import.meta.env.VITE_API_URL}/api/notifications`, {
-        credentials: 'include',
-      });
+              headers: {
+                Authorization: `Bearer ${localStorage.getItem('token')}`,
+                'Content-Type': 'application/json',
+              },
+            });
       const data = await response.json();
-      setNotifications(data);
+      console.log('Fetched notifications:', data);
+      const notifs = Array.isArray(data) ? data : data.notifications || [];
+      setNotifications(notifs);
     } catch (error) {
       console.error('Failed to fetch notifications:', error);
     }
@@ -88,9 +93,12 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({
   const markAsRead = async (id: string) => {
     try {
       await fetch(`${import.meta.env.VITE_API_URL}/api/notifications/${id}/read`, {
-        method: 'POST',
-        credentials: 'include',
-      });
+          method: 'POST',
+          headers: {
+            Authorization: `Bearer ${localStorage.getItem('token')}`,
+            'Content-Type': 'application/json',
+          },
+        });
       setNotifications(prev => 
         prev.map(n => n.id === id ? { ...n, isRead: true } : n)
       );
